@@ -16,6 +16,7 @@ jobs:
       - name: install autotag binary
         run: |
           gh release download "$TAG" --repo "$REPO" --pattern "$BINARY"
+          chmod +x "$BINARY"
           sudo mv "$BINARY" /usr/bin/autotag
         env:
           REPO: autotag-dev/autotag
