@@ -1,12 +1,14 @@
 name: bump and release
 on:
   workflow_call:
-
+    inputs:
+      workflow_file:
+        description: 'Optional workflow file to run with gh workflow'
+        required: false
+        type: string
 jobs:
   bump-release:
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4
@@ -30,5 +32,8 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
           gh release create "$TAG" --title "$TAG" --generate-notes
+          if [ "${{ inputs.workflow_file }}" != "" ]; then
+            gh workflow run ${{ inputs.workflow_file }} --ref $TAG
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
