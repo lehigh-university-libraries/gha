@@ -21,6 +21,7 @@ jobs:
           REPO: autotag-dev/autotag
           BINARY: autotag_linux_amd64
           TAG: v1.4.1
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Bump git tag and create GitHub Release
         run: |-
@@ -29,4 +30,4 @@ jobs:
           git push origin "$TAG"
           gh release create "$TAG" --title "$TAG" --generate-notes
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
