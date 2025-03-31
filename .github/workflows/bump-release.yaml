@@ -1,0 +1,33 @@
+name: bump and release
+on:
+  workflow_call:
+
+jobs:
+  bump-release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: 'actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683' # v4
+        with:
+          fetch-depth: 0
+
+      - name: install autotag binary
+        run: |
+          gh release download "$TAG" --repo "$REPO" --pattern "$BINARY"
+          sudo mv "$BINARY" /usr/bin/autotag
+        env:
+          REPO: autotag-dev/autotag
+          BINARY: autotag_linux_amd64
+          TAG: v1.4.1
+
+      - name: Bump git tag and create GitHub Release
+        run: |-
+          TAG=$(autotag)
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" --title "$TAG" --generate-notes
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
