@@ -6,6 +6,10 @@ on:
         description: 'Optional workflow file to run with gh workflow'
         required: false
         type: string
+      branch:
+        description: 'Optional git branch to pass to autotag'
+        required: false
+        type: string
 jobs:
   bump-release:
     runs-on: ubuntu-24.04
@@ -31,7 +35,11 @@ jobs:
 
       - name: Bump git tag and create GitHub Release
         run: |-
-          TAG=$(autotag)
+          if [ "${{ inputs.branch }}" = "" ]; then
+            TAG=$(autotag)
+          else
+            TAG=$(autotag -b "${{ inputs.branch }}")
+          fi
           git tag "$TAG"
           git push origin "$TAG"
           gh release create "$TAG" --title "$TAG" --generate-notes
