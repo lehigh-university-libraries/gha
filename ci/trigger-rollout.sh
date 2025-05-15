@@ -24,6 +24,8 @@ PAYLOAD=$(cat <<EOF
 EOF
 )
 
+echo "${PAYLOAD}" | jq .
+
 COUNT=0
 while true; do
   STATUS=$(curl -sk \
