@@ -1,0 +1,29 @@
+name: deploy
+on:
+  workflow_call:
+    inputs:
+      url:
+        description: "Rollout URL"
+        type: string
+        required: true
+jobs:
+  run:
+    runs-on: [self-hosted, linderman]
+    steps:
+      - name: validate input
+        run: |
+          regex='^https://[A-Za-z0-9\.\-]+\/_rollout$'
+          if [[ "${{ inputs.url }}" =~ $regex ]]; then
+            echo "Valid URL"
+          else
+            echo "Invalid URL"
+            exit 1
+          fi
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          repository: lehigh-university-libraries/gha
+
+      - run: ./ci/trigger-rollout.sh
+        env:
+          ROLLOUT_URL: ${{ inputs.url }}
