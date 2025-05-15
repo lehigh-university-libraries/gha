@@ -10,6 +10,10 @@ on:
         description: 'Optional git branch to pass to autotag'
         required: false
         type: string
+      prefix:
+        description: 'prefix semver with a string'
+        required: false
+        type: string
 jobs:
   bump-release:
     runs-on: ubuntu-24.04
@@ -40,9 +44,9 @@ jobs:
           else
             TAG=$(autotag -b "${{ inputs.branch }}")
           fi
-          git tag "$TAG"
-          git push origin "$TAG"
-          gh release create "$TAG" --title "$TAG" --generate-notes
+          git tag "${{ inputs.prefix }}$TAG"
+          git push origin "${{ inputs.prefix }}$TAG"
+          gh release create "${{ inputs.prefix }}$TAG" --title "${{ inputs.prefix }}$TAG" --generate-notes
           if [ "${{ inputs.workflow_file }}" != "" ]; then
             gh workflow run ${{ inputs.workflow_file }} --ref $TAG
           fi
