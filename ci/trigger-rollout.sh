@@ -17,7 +17,7 @@ echo "${TOKEN}" | jq -rR 'split(".") | .[1] | @base64d | fromjson | .aud'
 
 PAYLOAD=$(cat <<EOF
 {
-  "git-repo": "${GITHUB_ACTION_REPOSITORY}",
+  "git-repo": "${GITHUB_REPOSITORY}",
   "git-branch": "${GITHUB_REF_NAME}",
   "docker-tag": "${GITHUB_REF_NAME}"
 }
