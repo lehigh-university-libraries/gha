@@ -19,7 +19,7 @@ PAYLOAD=$(cat <<EOF
 {
   "git-repo": "${GITHUB_REPOSITORY}",
   "git-branch": "${GITHUB_REF_NAME}",
-  "docker-tag": "${GITHUB_REF_NAME}"
+  "docker-tag": "$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9._-]//g' | awk '{print substr($0, length($0)-120)}')"
 }
 EOF
 )
