@@ -11,7 +11,7 @@ on:
         type: string
         default: "."
       runners:
-        required: true
+        required: false
         type: string
         default: '["ubuntu-24.04", "ubuntu-24.04-arm"]'
 jobs:
