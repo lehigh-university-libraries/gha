@@ -10,17 +10,20 @@ on:
         required: false
         type: string
         default: "."
-
+      runners:
+        required: true
+        type: string
+        default: '["ubuntu-24.04", "ubuntu-24.04-arm"]'
 jobs:
   build:
     strategy:
       matrix:
-        runner:
-          - ubuntu-24.04
-          - ubuntu-24.04-arm
+        runner: ${{ fromJSON(inputs.runners) }}
     name: build-${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
+    outputs:
+      image-tag: ${{ steps.record-tag.outputs.tag }}
     steps:
       - name: validate input
         run: |
@@ -70,6 +73,10 @@ jobs:
           cache-to: ${{ steps.vars.outputs.cache-to }}
           tags: |
             ${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}-${{ steps.vars.outputs.platform }}
+      - name: record image tag
+        id: record-tag
+        run: |
+          echo "tag=${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}-${{ steps.vars.outputs.platform }}" >> $GITHUB_OUTPUT
   merge:
     runs-on: ubuntu-24.04
     needs:
@@ -89,6 +96,7 @@ jobs:
           sparse-checkout: |
             ci/gha-extract-docker-vars.sh
           sparse-checkout-cone-mode: false
+
       - run: ./gha/ci/gha-extract-docker-vars.sh
         id: vars
         env:
@@ -98,7 +106,23 @@ jobs:
 
       - name: merge platform images
         run: |
+          tags=""
+          mapfile -t runners < <(echo '${{ inputs.runners }}' | jq -r '.[]')
+          for runner in "${runners[@]}"; do
+            RUNNER_ARCH="X64"
+            if [[ "$runner" == *"arm"* ]]; then
+              RUNNER_ARCH="ARM64"
+            fi
+            GITHUB_OUTPUT=/tmp/vars_${runner}.txt ./gha/ci/gha-extract-docker-vars.sh
+            image=$(grep "^image=" /tmp/vars_${runner}.txt | cut -d'=' -f2)
+            tag=$(grep "^tag=" /tmp/vars_${runner}.txt | cut -d'=' -f2)
+            platform=$(grep "^platform=" /tmp/vars_${runner}.txt | cut -d'=' -f2)
+
+            tags="$tags ${image}:${tag}-${platform}"
+          done
+
           docker buildx imagetools create \
             -t "${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}" \
-            "${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}-amd64" \
-            "${{ steps.vars.outputs.image }}:${{ steps.vars.outputs.tag }}-arm64"
+            $tags
+        env:
+          DOCKER_IMAGE: ${{ steps.vars.outputs.image }}
