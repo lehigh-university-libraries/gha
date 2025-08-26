@@ -13,7 +13,7 @@ if [ "$RUNNER_ARCH" = "ARM64" ]; then
 fi
 
 if [ "${DOCKER_IMAGE}" = "ghcr.io/lehigh-university-libraries/" ]; then
-  DOCKER_IMAGE="ghcr.io/${GITHUB_REPOSITORY}"
+  DOCKER_IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}"
 fi
 
 CACHE_TO=""
