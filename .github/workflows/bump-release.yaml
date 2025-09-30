@@ -41,7 +41,7 @@ jobs:
         run: |-
           if [ "${{ inputs.branch }}" = "" ]; then
             TAG=$(autotag)
-            git tag "${{ inputs.prefix }}$TAG"
+            git tag "${{ inputs.prefix }}$TAG" || echo continue
           else
             TAG=$(autotag -b "${{ inputs.branch }}")
           fi
