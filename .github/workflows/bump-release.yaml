@@ -48,7 +48,7 @@ jobs:
           git push origin "${{ inputs.prefix }}$TAG"
           gh release create "${{ inputs.prefix }}$TAG" --title "${{ inputs.prefix }}$TAG" --generate-notes
           if [ "${{ inputs.workflow_file }}" != "" ]; then
-            gh workflow run ${{ inputs.workflow_file }} --ref $TAG
+            gh workflow run ${{ inputs.workflow_file }} --ref "${{ inputs.prefix }}$TAG"
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
