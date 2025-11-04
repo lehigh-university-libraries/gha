@@ -70,6 +70,7 @@ jobs:
           context: ${{ inputs.context }}
           build-args: |
             TARGETARCH=${{ steps.vars.outputs.platform }}
+            LEHIGH_TAG=${{ steps.vars.outputs.tag }}
           push: true
           cache-from: ${{ steps.vars.outputs.cache-from }}
           cache-to: ${{ steps.vars.outputs.cache-to }}
