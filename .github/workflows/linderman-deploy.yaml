@@ -8,6 +8,7 @@ on:
         required: true
 jobs:
   run:
+    if: ${{ !contains(github.actor, '[bot]') }}
     runs-on: [self-hosted, linderman]
     steps:
       - name: validate input
