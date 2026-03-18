@@ -2,10 +2,14 @@
 
 set -eou pipefail
 
-TAG=$(echo "${GITHUB_REF#refs/heads/}" | sed 's/[^a-zA-Z0-9._-]//g' | awk '{print substr($0, length($0)-120)}')
-if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
-  TAG=$(echo "${GITHUB_REF#refs/tags/}" | sed 's/[^a-zA-Z0-9._-]//g' | awk '{print substr($0, length($0)-120)}')
+if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+  RAW_TAG=${GITHUB_HEAD_REF}
+else
+  RAW_TAG=${GITHUB_REF_NAME}
 fi
+TAG=$(echo "$RAW_TAG" | sed 's/[^a-zA-Z0-9._-]//g' | awk '{print substr($0, length($0)-120)}')
+
+echo "Final TAG is: $TAG"
 
 PLATFORM="amd64"
 if [ "$RUNNER_ARCH" = "ARM64" ]; then
