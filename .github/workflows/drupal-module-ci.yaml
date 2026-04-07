@@ -1,0 +1,147 @@
+name: drupal-module-ci
+on:
+  workflow_call:
+    inputs:
+      workflow_branch:
+        description: "Optional branch regex guard for refs/heads/*"
+        required: false
+        type: string
+        default: ""
+      workflow_php_versions:
+        description: "JSON array of PHP versions"
+        required: false
+        type: string
+        default: '["8.3","8.4"]'
+      workflow_drupal_versions:
+        description: "JSON array of Drupal versions"
+        required: false
+        type: string
+        default: '["10.5","10.6","11.2","11.3"]'
+      workflow_docker_image:
+        description: "Container image repository"
+        required: false
+        type: string
+        default: "ghcr.io/islandora/ci"
+      workflow_module_path:
+        description: "Module path in the checked out repository"
+        required: false
+        type: string
+        default: "."
+      workflow_container_module_path:
+        description: "Module path inside the test container"
+        required: false
+        type: string
+        default: "/var/www/drupal/web/modules/contrib/module"
+      workflow_enable_modules:
+        description: "Space-delimited Drupal modules to enable"
+        required: true
+        type: string
+      workflow_test_suite:
+        description: "Optional test suite selector"
+        required: false
+        type: string
+        default: ""
+      workflow_activemq_image:
+        description: "ActiveMQ image to run alongside tests"
+        required: false
+        type: string
+        default: "webcenter/activemq:5.14.3"
+      workflow_network_name:
+        description: "Docker network name"
+        required: false
+        type: string
+        default: "ci-default"
+      workflow_runner:
+        description: "GitHub runner label"
+        required: false
+        type: string
+        default: "ubuntu-24.04"
+jobs:
+  test:
+    runs-on: ${{ inputs.workflow_runner }}
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+      matrix:
+        php-version: ${{ fromJSON(inputs.workflow_php_versions) }}
+        drupal-version: ${{ fromJSON(inputs.workflow_drupal_versions) }}
+    name: PHP ${{ matrix.php-version }} | Drupal ${{ matrix.drupal-version }}
+    steps:
+      - name: validate inputs
+        shell: bash
+        run: |
+          if [ "${{ inputs.workflow_branch }}" != "" ]; then
+            branch_regex='^[A-Za-z0-9._/-]+$'
+            if [[ ! "${{ inputs.workflow_branch }}" =~ $branch_regex ]]; then
+              echo "Invalid workflow_branch"
+              exit 1
+            fi
+            if [[ "${GITHUB_REF_TYPE}" != "branch" ]]; then
+              echo "workflow_branch can only be used on branch refs"
+              exit 1
+            fi
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^${{ inputs.workflow_branch }}$ ]]; then
+              echo "Ref ${GITHUB_REF_NAME} does not match workflow_branch"
+              exit 1
+            fi
+          fi
+
+          path_regex='^[A-Za-z0-9._/\-]+$'
+          value_regex='^[A-Za-z0-9._:/ @\-,]+$'
+          for value in \
+            "${{ inputs.workflow_docker_image }}" \
+            "${{ inputs.workflow_module_path }}" \
+            "${{ inputs.workflow_container_module_path }}" \
+            "${{ inputs.workflow_activemq_image }}" \
+            "${{ inputs.workflow_network_name }}" \
+            "${{ inputs.workflow_runner }}" \
+            "${{ inputs.workflow_enable_modules }}" \
+            "${{ inputs.workflow_test_suite }}"; do
+            if [[ ! "$value" =~ $value_regex ]]; then
+              echo "Invalid workflow input value: $value"
+              exit 1
+            fi
+          done
+
+          if [[ ! "${{ inputs.workflow_module_path }}" =~ $path_regex ]]; then
+            echo "Invalid workflow_module_path"
+            exit 1
+          fi
+
+          if [[ ! "${{ inputs.workflow_container_module_path }}" =~ ^/[A-Za-z0-9._/\-]+$ ]]; then
+            echo "Invalid workflow_container_module_path"
+            exit 1
+          fi
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: create docker network
+        run: docker network create "${{ inputs.workflow_network_name }}"
+
+      - name: start ActiveMQ
+        run: |
+          docker run -d \
+            --name activemq \
+            --network "${{ inputs.workflow_network_name }}" \
+            "${{ inputs.workflow_activemq_image }}"
+
+      - name: PHPUnit tests
+        run: |
+          docker run \
+            --rm \
+            --name drupal \
+            --hostname drupal \
+            --volume "${PWD}/${{ inputs.workflow_module_path }}:${{ inputs.workflow_container_module_path }}:ro" \
+            --env ENABLE_MODULES \
+            --env TEST_SUITE \
+            --network "${{ inputs.workflow_network_name }}" \
+            "${{ inputs.workflow_docker_image }}:${{ matrix.drupal-version }}-php${{ matrix.php-version }}"
+        env:
+          ENABLE_MODULES: ${{ inputs.workflow_enable_modules }}
+          TEST_SUITE: ${{ inputs.workflow_test_suite }}
+
+      - name: cleanup
+        if: ${{ always() }}
+        run: |
+          docker rm -f activemq || true
+          docker network rm "${{ inputs.workflow_network_name }}" || true

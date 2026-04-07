@@ -1,0 +1,104 @@
+name: drupalorg-mirror
+on:
+  workflow_call:
+    inputs:
+      workflow_branch:
+        description: "Optional branch regex guard for refs/heads/*"
+        required: false
+        type: string
+        default: ""
+      workflow_repo_url:
+        description: "Drupal.org Git repository URL"
+        required: true
+        type: string
+      workflow_follow_tags:
+        description: "Mirror Git tags"
+        required: false
+        type: boolean
+        default: true
+      workflow_force_push:
+        description: "Force-push mirror updates"
+        required: false
+        type: boolean
+        default: false
+      workflow_gitlab_hostname:
+        description: "GitLab hostname"
+        required: false
+        type: string
+        default: "git.drupal.org"
+      workflow_gitlab_username:
+        description: "GitLab username"
+        required: true
+        type: string
+      workflow_gitlab_project_id:
+        description: "GitLab project ID used to trigger CI"
+        required: true
+        type: string
+      workflow_runner:
+        description: "GitHub runner label"
+        required: false
+        type: string
+        default: "ubuntu-24.04"
+    secrets:
+      workflow_gitlab_password:
+        required: true
+jobs:
+  mirror:
+    runs-on: ${{ inputs.workflow_runner }}
+    steps:
+      - name: validate inputs
+        shell: bash
+        run: |
+          if [ "${{ inputs.workflow_branch }}" != "" ]; then
+            branch_regex='^[A-Za-z0-9._/-]+$'
+            if [[ ! "${{ inputs.workflow_branch }}" =~ $branch_regex ]]; then
+              echo "Invalid workflow_branch"
+              exit 1
+            fi
+            if [[ "${GITHUB_REF_TYPE}" != "branch" ]]; then
+              echo "workflow_branch can only be used on branch refs"
+              exit 1
+            fi
+            if [[ ! "${GITHUB_REF_NAME}" =~ ^${{ inputs.workflow_branch }}$ ]]; then
+              echo "Ref ${GITHUB_REF_NAME} does not match workflow_branch"
+              exit 1
+            fi
+          fi
+
+          url_regex='^https://git\.drupalcode\.org/project/[A-Za-z0-9._-]+$'
+          host_regex='^[A-Za-z0-9.-]+$'
+          value_regex='^[A-Za-z0-9._@-]+$'
+
+          if [[ ! "${{ inputs.workflow_repo_url }}" =~ $url_regex ]]; then
+            echo "Invalid workflow_repo_url"
+            exit 1
+          fi
+          if [[ ! "${{ inputs.workflow_gitlab_hostname }}" =~ $host_regex ]]; then
+            echo "Invalid workflow_gitlab_hostname"
+            exit 1
+          fi
+          if [[ ! "${{ inputs.workflow_gitlab_username }}" =~ $value_regex ]]; then
+            echo "Invalid workflow_gitlab_username"
+            exit 1
+          fi
+          if [[ ! "${{ inputs.workflow_gitlab_project_id }}" =~ ^[0-9]+$ ]]; then
+            echo "Invalid workflow_gitlab_project_id"
+            exit 1
+          fi
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+
+      - name: mirror and trigger CI
+        uses: SvanBoxel/gitlab-mirror-and-ci-action@master
+        with:
+          args: "${{ inputs.workflow_repo_url }}"
+        env:
+          FOLLOW_TAGS: "${{ inputs.workflow_follow_tags }}"
+          FORCE_PUSH: "${{ inputs.workflow_force_push }}"
+          GITLAB_HOSTNAME: "${{ inputs.workflow_gitlab_hostname }}"
+          GITLAB_USERNAME: "${{ inputs.workflow_gitlab_username }}"
+          GITLAB_PASSWORD: "${{ secrets.workflow_gitlab_password }}"
+          GITLAB_PROJECT_ID: "${{ inputs.workflow_gitlab_project_id }}"
+          GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
